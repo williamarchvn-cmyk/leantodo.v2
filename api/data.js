@@ -1,4 +1,5 @@
 import { get, put, head, BlobPreconditionFailedError } from '@vercel/blob';
+import { diffTasks, notifyLines } from './_zalo.js';
 
 /* Toàn bộ dữ liệu nằm trong MỘT file JSON trong Private Blob. */
 const PATH = 'leantodo/data.json';
@@ -48,11 +49,18 @@ export default async function handler(req, res) {
       if (Buffer.byteLength(payload) > MAX_BYTES) return res.status(413).json({ error: 'Dữ liệu quá lớn' });
 
       const opts = { access: 'private', contentType: 'application/json', addRandomSuffix: false };
+      /* Báo Zalo: lấy bản đang có trên server để so sánh (chỉ khi đã đặt ZALO_NOTIFY_KEY và đây không phải lần ghi đầu tiên) */
+      let before = null;
+      if (process.env.ZALO_NOTIFY_KEY && etag) {
+        try { const cur = await readLatest(); before = cur.data && cur.data.tasks ? cur.data : null; } catch (_) { before = null; }
+      }
       try {
         const out = etag
           ? await put(PATH, payload, { ...opts, allowOverwrite: true, ifMatch: etag })
           : await put(PATH, payload, { ...opts, allowOverwrite: false });
         const newEtag = out.etag || (await head(PATH)).etag;
+        /* Ghi xong mới báo (không bao giờ làm hỏng việc lưu) */
+        if (before) { try { await notifyLines(diffTasks(before.tasks, data.tasks)); } catch (_) {} }
         return res.status(200).json({ etag: newEtag });
       } catch (e) {
         const conflict =
