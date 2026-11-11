@@ -1,0 +1,13 @@
+{
+  "name": "lean-todo",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Lean To Do - đồng bộ nhiều thiết bị bằng Vercel Blob",
+  "dependencies": {
+    "@vercel/blob": "^2.3.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
