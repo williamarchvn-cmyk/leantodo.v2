@@ -1,23 +1,9 @@
-import { get, put, head, BlobPreconditionFailedError } from '@vercel/blob';
 import { diffTasks, notifyLines } from './_zalo.js';
+import { readLatest, writeIfUnchanged } from './_blob.js';
 
-/* Toàn bộ dữ liệu nằm trong MỘT file JSON trong Private Blob. */
-const PATH = 'leantodo/data.json';
+/* Toàn bộ dữ liệu nằm trong MỘT file JSON trong Private Blob (xem _blob.js). */
 const MAX_BYTES = 512 * 1024;
 const MAX_TASKS = 3000;
-
-/* Luôn đọc bản mới nhất (useCache:false) để không thấy bản cũ tới 60 giây. */
-async function readLatest(ifNoneMatch) {
-  const r = await get(PATH, {
-    access: 'private',
-    useCache: false,
-    ...(ifNoneMatch ? { ifNoneMatch } : {}),
-  });
-  if (!r) return { empty: true };
-  if (r.statusCode === 304) return { notModified: true, etag: r.blob.etag };
-  const text = await new Response(r.stream).text();
-  return { data: JSON.parse(text), etag: r.blob.etag };
-}
 
 function validate(data) {
   if (!data || typeof data !== 'object') return false;
@@ -48,29 +34,20 @@ export default async function handler(req, res) {
       const payload = JSON.stringify(data);
       if (Buffer.byteLength(payload) > MAX_BYTES) return res.status(413).json({ error: 'Dữ liệu quá lớn' });
 
-      const opts = { access: 'private', contentType: 'application/json', addRandomSuffix: false };
       /* Báo Zalo: lấy bản đang có trên server để so sánh (chỉ khi đã đặt ZALO_NOTIFY_KEY và đây không phải lần ghi đầu tiên) */
       let before = null;
       if (process.env.ZALO_NOTIFY_KEY && etag) {
         try { const cur = await readLatest(); before = cur.data && cur.data.tasks ? cur.data : null; } catch (_) { before = null; }
       }
-      try {
-        const out = etag
-          ? await put(PATH, payload, { ...opts, allowOverwrite: true, ifMatch: etag })
-          : await put(PATH, payload, { ...opts, allowOverwrite: false });
-        const newEtag = out.etag || (await head(PATH)).etag;
-        /* Ghi xong mới báo (không bao giờ làm hỏng việc lưu) */
-        if (before) { try { await notifyLines(diffTasks(before.tasks, data.tasks)); } catch (_) {} }
-        return res.status(200).json({ etag: newEtag });
-      } catch (e) {
-        const conflict =
-          e instanceof BlobPreconditionFailedError ||
-          /already exists|precondition/i.test(String(e && e.message));
-        if (!conflict) throw e;
+      const w = await writeIfUnchanged(payload, etag || null);
+      if (!w.ok) {
         /* Máy khác vừa ghi: trả bản mới nhất để client tự gộp rồi ghi lại. */
         const cur = await readLatest();
         return res.status(409).json({ data: cur.data || null, etag: cur.etag || null });
       }
+      /* Ghi xong mới báo (không bao giờ làm hỏng việc lưu) */
+      if (before) { try { await notifyLines(diffTasks(before.tasks, data.tasks)); } catch (_) {} }
+      return res.status(200).json({ etag: w.etag });
     }
 
     res.setHeader('Allow', 'GET, PUT');

@@ -1,5 +1,5 @@
-import { get, put, head, BlobPreconditionFailedError } from '@vercel/blob';
 import { ZONE_NAME } from './_zalo.js';
+import { readLatest, writeIfUnchanged } from './_blob.js';
 
 /* Cửa cho bot Zalo: đọc danh sách và thêm / sửa / chuyển ô / xóa việc.
    Ghi đúng "luật" của app để không làm hỏng dữ liệu khi gộp với điện thoại / máy tính:
@@ -8,7 +8,6 @@ import { ZONE_NAME } from './_zalo.js';
    - tối đa 5 việc ở "Tự làm" (z=1); ô: 1 = Tự làm, 3 = Giám sát, 4 = Giao việc
    Cần biến môi trường ZALO_REPORT_KEY (giống LEAN_KEY trong CONFIG của Worker). */
 
-const PATH = 'leantodo/data.json';
 const MAX1 = 5;
 const MAX_BYTES = 512 * 1024;
 const MAX_TASKS = 3000;
@@ -81,14 +80,7 @@ function rememberPerson(db, name) {
   db.p = [n, ...db.p.filter((x) => x.toLowerCase() !== n.toLowerCase())].slice(0, 40);
 }
 
-/* ---------- Blob ---------- */
-async function readLatest() {
-  const r = await get(PATH, { access: 'private', useCache: false });
-  if (!r) return { empty: true };
-  const text = await new Response(r.stream).text();
-  return { data: JSON.parse(text), etag: r.blob.etag };
-}
-
+/* ---------- Blob (xem _blob.js) ---------- */
 /* Đọc → sửa trong bộ nhớ → ghi có điều kiện ETag. Trùng (máy khác vừa ghi) thì đọc lại và làm lại, tối đa 4 lần. */
 async function mutate(fn) {
   for (let attempt = 0; attempt < 4; attempt++) {
@@ -99,16 +91,9 @@ async function mutate(fn) {
     if (Object.keys(db.tasks).length > MAX_TASKS) throw new Fail('too_many', 'Quá nhiều việc');
     const payload = JSON.stringify(db);
     if (Buffer.byteLength(payload) > MAX_BYTES) throw new Fail('too_big', 'Dữ liệu quá lớn', 413);
-    const opts = { access: 'private', contentType: 'application/json', addRandomSuffix: false };
-    try {
-      const w = cur.etag
-        ? await put(PATH, payload, { ...opts, allowOverwrite: true, ifMatch: cur.etag })
-        : await put(PATH, payload, { ...opts, allowOverwrite: false });
-      return { db, out, etag: w.etag || (await head(PATH)).etag };
-    } catch (e) {
-      const conflict = e instanceof BlobPreconditionFailedError || /already exists|precondition/i.test(String(e && e.message));
-      if (!conflict) throw e;
-    }
+    const w = await writeIfUnchanged(payload, cur.empty ? null : cur.etag);
+    if (w.ok) return { db, out, etag: w.etag };
+    /* trùng (máy khác vừa ghi) → vòng lặp đọc lại và làm lại */
   }
   throw new Fail('conflict', 'Dữ liệu đang bị sửa liên tục, thử lại sau ít giây', 409);
 }
