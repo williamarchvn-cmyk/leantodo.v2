@@ -150,7 +150,7 @@ input::placeholder,textarea::placeholder{color:var(--muted);opacity:1}
 .tv{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:15px;font-weight:500}
 .field.has .tv{color:var(--ink)}
 .field.late .tv{color:var(--danger)}
-.field input[type=datetime-local]{position:absolute;inset:0;width:100%;height:100%;opacity:0;z-index:1;border:0;padding:0;cursor:pointer;-webkit-appearance:none;appearance:none}
+.field input[type=date]{position:absolute;inset:0;width:100%;height:100%;opacity:0;z-index:1;border:0;padding:0;cursor:pointer;-webkit-appearance:none;appearance:none}
 .clr{position:relative;z-index:2;display:none;place-items:center;width:26px;height:26px;padding:0;border:0;border-radius:50%;background:color-mix(in srgb,var(--ink) 9%,transparent);color:var(--muted)}
 .clr svg{width:13px;height:13px;stroke-width:2.4}
 .field.has .clr{display:grid}
@@ -217,7 +217,7 @@ body.dragging,body.dragging *{cursor:grabbing!important;user-select:none!importa
     <input class="in" id="fTitle" type="text" placeholder="Thêm việc mới…" enterkeyhint="go" maxlength="160" autocapitalize="sentences" spellcheck="false">
     <button class="add off" id="add" type="submit" aria-label="Thêm"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
     <label class="field person"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M4.8 20c.7-3.7 3.6-5.8 7.2-5.8s6.5 2.1 7.2 5.8"/></svg><input id="fPerson" type="text" list="people" placeholder="Người" enterkeyhint="go" maxlength="40" autocapitalize="words" spellcheck="false"></label>
-    <div class="field time" id="fTimeF"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.6V12l2.8 1.9"/></svg><span class="tv">Thời gian</span><button type="button" class="clr" aria-label="Bỏ thời gian"><svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg></button><input type="datetime-local" aria-label="Thời gian"></div>
+    <div class="field time" id="fTimeF"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.6V12l2.8 1.9"/></svg><span class="tv">Thời gian</span><button type="button" class="clr" aria-label="Bỏ thời gian"><svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg></button><input type="date" aria-label="Thời gian"></div>
   </form>
 
   <div class="split">
@@ -240,7 +240,7 @@ body.dragging,body.dragging *{cursor:grabbing!important;user-select:none!importa
   <textarea id="eTitle" rows="1" enterkeyhint="done" maxlength="160" spellcheck="false"></textarea>
   <div class="srow">
     <label class="field person"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M4.8 20c.7-3.7 3.6-5.8 7.2-5.8s6.5 2.1 7.2 5.8"/></svg><input id="ePerson" type="text" list="people" placeholder="Người" enterkeyhint="done" maxlength="40" autocapitalize="words" spellcheck="false" autocomplete="off"></label>
-    <div class="field time" id="eTimeF"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.6V12l2.8 1.9"/></svg><span class="tv">Thời gian</span><button type="button" class="clr" aria-label="Bỏ thời gian"><svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg></button><input type="datetime-local" aria-label="Thời gian"></div>
+    <div class="field time" id="eTimeF"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.6V12l2.8 1.9"/></svg><span class="tv">Thời gian</span><button type="button" class="clr" aria-label="Bỏ thời gian"><svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg></button><input type="date" aria-label="Thời gian"></div>
   </div>
   <div class="sact"><button type="button" class="btn lite" id="eCancel">Hủy</button><button type="button" class="btn solid" id="eSave">Lưu</button></div>
 </div>
@@ -452,9 +452,9 @@ const pad=n=>String(n).padStart(2,'0');
 const WD=['CN','T2','T3','T4','T5','T6','T7'];
 const parse=v=>{if(!v)return null;const d=new Date(v);return isNaN(d)?null:d;};
 function dayDiff(d){const n=new Date();return Math.round((new Date(d.getFullYear(),d.getMonth(),d.getDate())-new Date(n.getFullYear(),n.getMonth(),n.getDate()))/864e5);}
-function fmtCard(v){const d=parse(v);if(!d)return'';const hm=pad(d.getHours())+':'+pad(d.getMinutes()),k=dayDiff(d);if(k===0)return hm;if(k===1)return'Mai '+hm;return pad(d.getDate())+'/'+pad(d.getMonth()+1)+' '+hm;}
-function fmtChip(v){const d=parse(v);if(!d)return'';const hm=pad(d.getHours())+':'+pad(d.getMinutes()),k=dayDiff(d);if(k===0)return hm+' · Hôm nay';if(k===1)return hm+' · Mai';if(k===-1)return hm+' · Hôm qua';return hm+' · '+WD[d.getDay()]+' '+pad(d.getDate())+'/'+pad(d.getMonth()+1);}
-const isLate=v=>{const d=parse(v);return !!d&&d<new Date();};
+function fmtCard(v){const d=parse(v);if(!d)return'';const k=dayDiff(d);if(k===0)return'Hôm nay';if(k===1)return'Mai';return pad(d.getDate())+'/'+pad(d.getMonth()+1);}
+function fmtChip(v){const d=parse(v);if(!d)return'';const k=dayDiff(d);if(k===0)return'Hôm nay';if(k===1)return'Mai';if(k===-1)return'Hôm qua';return WD[d.getDay()]+' '+pad(d.getDate())+'/'+pad(d.getMonth()+1);}
+const isLate=v=>{const d=parse(v);return !!d&&dayDiff(d)<0;};   /* chỉ tính theo ngày: quá hạn khi đã qua ngày đó */
 
 /* ================= colour ================= */
 const T={dark:false},ACC={};let FADE=[255,255,255];
@@ -551,12 +551,14 @@ function shakeEl(el){el.classList.remove('shake');void el.offsetWidth;el.classLi
 /* ================= time field ================= */
 function bindTime(f){
   const inp=f.querySelector('input'),tv=f.querySelector('.tv'),clr=f.querySelector('.clr');
-  const upd=()=>{const v=inp.value;tv.textContent=v?fmtChip(v):'Thời gian';f.classList.toggle('has',!!v);f.classList.toggle('late',isLate(v));};
+  let orig='';   /* giá trị gốc (việc cũ có thể còn kèm giờ): chọn đúng ngày cũ thì giữ nguyên, không tính là đã sửa */
+  const val=()=>{const d=inp.value;if(!d)return'';return orig&&orig.slice(0,10)===d?orig:d+'T23:59';};
+  const upd=()=>{const v=val();tv.textContent=v?fmtChip(v):'Thời gian';f.classList.toggle('has',!!v);f.classList.toggle('late',isLate(v));};
   inp.addEventListener('input',upd);inp.addEventListener('change',upd);
   inp.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'&&inp.showPicker){try{inp.showPicker();e.preventDefault();}catch(_){}}});
   clr.addEventListener('pointerdown',e=>e.preventDefault());
-  clr.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();inp.value='';upd();});
-  return{get:()=>inp.value,set:v=>{inp.value=v||'';upd();},refresh:upd};
+  clr.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();inp.value='';orig='';upd();});
+  return{get:val,set:v=>{orig=v||'';inp.value=v?String(v).slice(0,10):'';upd();},refresh:upd};
 }
 
 /* ================= composer ================= */
